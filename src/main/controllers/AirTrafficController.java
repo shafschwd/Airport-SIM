@@ -8,17 +8,17 @@ public class AirTrafficController {
 
     public void requestLanding(Plane plane) throws InterruptedException {
         runway.acquire();
-        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getId() + " is landing.");
+        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getPlaneId() + " is landing.");
         Thread.sleep(2000); // Simulate landing time
-        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getId() + " has landed.");
+        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getPlaneId() + " has landed.");
         runway.release();
     }
 
     public void requestTakeoff(Plane plane) throws InterruptedException {
         runway.acquire();
-        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getId() + " is taking off.");
+        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getPlaneId() + " is taking off.");
         Thread.sleep(2000); // Simulate takeoff time
-        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getId() + " has taken off.");
+        System.out.println(Thread.currentThread().getName() + ": Plane " + plane.getPlaneId() + " has taken off.");
         runway.release();
     }
 }

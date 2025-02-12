@@ -1,3 +1,7 @@
+package entities;
+
+import entities.Plane; // ✅ Import Plane class
+
 public class RefuelingTruck {
     private static final Object lock = new Object();
 

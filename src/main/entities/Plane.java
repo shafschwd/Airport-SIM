@@ -1,19 +1,22 @@
 package entities;
 
 import controllers.AirTrafficController;
+import controllers.AirportManager;
 
 public class Plane extends Thread {
-    private final int id;
+    private final int planeId; // Renamed from id to planeId
     private final AirTrafficController atc;
+    private final AirportManager manager;
 
-    public Plane(int id, AirTrafficController atc) {
-        super("Plane-" + id);
-        this.id = id;
+    public Plane(int planeId, AirTrafficController atc, AirportManager manager) {
+        super("Plane-" + planeId);
+        this.planeId = planeId;
         this.atc = atc;
+        this.manager = manager;
     }
 
-    public int getId() {
-        return id;
+    public int getPlaneId() { // Renamed from getId() to getPlaneId()
+        return planeId;
     }
 
     @Override
@@ -24,6 +27,9 @@ public class Plane extends Thread {
 
             Thread.sleep(1000); // Simulate gate operations
             System.out.println(getName() + " has completed boarding and disembarking.");
+
+            manager.recordPlaneService();
+            manager.recordPassengerBoarding(50); // Assume full capacity for simplicity
 
             atc.requestTakeoff(this);
         } catch (InterruptedException e) {
