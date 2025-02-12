@@ -4,7 +4,7 @@ import controllers.AirTrafficController;
 import controllers.AirportManager;
 
 public class Plane extends Thread {
-    private final int planeId; // Renamed from id to planeId
+    private final int planeId;  // ✅ Renamed from id to planeId
     private final AirTrafficController atc;
     private final AirportManager manager;
 
@@ -15,7 +15,7 @@ public class Plane extends Thread {
         this.manager = manager;
     }
 
-    public int getPlaneId() { // Renamed from getId() to getPlaneId()
+    public int getPlaneId() {   // ✅ Renamed method
         return planeId;
     }
 
