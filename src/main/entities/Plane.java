@@ -14,7 +14,7 @@ public class Plane extends Thread {
     private final boolean lowFuel;
 
     private boolean checkBadWeather() {
-        return new Random().nextInt(100) < 30; // 30% chance of bad weather
+        return new Random().nextInt(100) < 30; // % chance of bad weather
     }
 
     public Plane(int planeId, AirTrafficController atc, AirportManager manager) {
