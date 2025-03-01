@@ -94,13 +94,17 @@ public class AirportManager {
             gates[gateNumber] = false;
             planesAtGates--;
 
-            // Set runway count to exactly 1 as plane moves to runway for takeoff
-            setRunwayStatus(1);
-
+            // Record gate occupancy time
             long occupancyTime = System.currentTimeMillis() - gateStartTimes[gateNumber];
             totalGateOccupancyTime += occupancyTime;
 
+            // Set runway count to exactly 1 as plane moves to runway for takeoff
+            setRunwayStatus(1);
+
+            // Print the departure message after all state has been updated
             System.out.println("🚪 " + plane.getName() + " has left Gate " + (gateNumber + 1) + ".");
+
+            // Print updated ground status only once after all changes are complete
             printGroundStatus();
 
             // Wake up all waiting threads
