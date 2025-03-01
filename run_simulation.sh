@@ -18,10 +18,6 @@ if [ $? -eq 0 ]; then
     # Run the Java program
     java -cp out main.AirportSimulation
 
-    # Calculate and display the execution time
-    end_time=$(date +%s.%N)
-    execution_time=$(echo "$end_time - $start_time" | bc)
-    printf "\n⏱️ Total execution time: %.2f seconds\n" $execution_time
 else
     echo "❌ Compilation Failed. Please check for errors above."
 fi

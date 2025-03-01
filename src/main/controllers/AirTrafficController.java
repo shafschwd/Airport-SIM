@@ -11,7 +11,7 @@ public class AirTrafficController {
 
     public synchronized void requestLanding(Plane plane, AirportManager manager) throws InterruptedException {
         if (plane.isEmergency()) {
-            System.out.println("🎤 P-" + plane.getPlaneId() + ": 'Tower, this is " + plane.getName() +
+            System.out.println("🎤 P-" + plane.getPlaneId() + ": '🚨 Tower, this is " + plane.getName() +
                     ", declaring EMERGENCY! Requesting immediate landing clearance.'");
             emergencyQueue.add(plane);
         } else {

@@ -27,7 +27,7 @@ public class AirportSimulation {
 
         // Create all planes first - make one plane an emergency aircraft
         for (int i = 0; i < totalPlanes; i++) {
-            boolean isEmergency = (i == 2); // Make Plane-3 an emergency aircraft
+            boolean isEmergency = rand.nextDouble() < 0.30; // 30% chance of emergency
             planes[i] = new Plane(i + 1, atc, manager, isEmergency);
         }
 
