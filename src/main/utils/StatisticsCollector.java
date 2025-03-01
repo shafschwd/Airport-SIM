@@ -17,9 +17,9 @@ public class StatisticsCollector {
         long min = waitingTimes.stream().min(Long::compareTo).orElse(0L);
         double avg = waitingTimes.stream().mapToLong(Long::longValue).average().orElse(0);
 
-        System.out.println("--- Simulation Statistics ---");
-        System.out.println("Max Waiting Time: " + max + " ms");
-        System.out.println("Min Waiting Time: " + min + " ms");
-        System.out.println("Average Waiting Time: " + avg + " ms");
+        System.out.println("📊  Max Wait Time: " + max + " ms");
+        System.out.println("📊  Min Wait Time: " + min + " ms");
+        System.out.println("📊  Average Wait Time: " + avg + " ms");
+        System.out.println("🚨 Emergency Landings Handled: " + waitingTimes.size());
     }
 }
