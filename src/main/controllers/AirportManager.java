@@ -1,6 +1,7 @@
 package controllers;
 
 import entities.Plane;
+import entities.Passenger;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -16,15 +17,23 @@ public class AirportManager {
     private int totalPlanesHandled = 0;
     private int successfulLandings = 0;
     private int successfulTakeoffs = 0;
+    private int emergencyLandings = 0;
     private long totalGateOccupancyTime = 0;
+    private int totalPassengersEmbarked = 0;
+    private int totalPassengersDisembarked = 0;
 
     public synchronized int getTotalPlanesOnGround() {
         return totalPlanesOnGround;
     }
 
+    // Helper method to explicitly set runway status
+    private synchronized void setRunwayStatus(int count) {
+        planesOnRunway = count;
+    }
+
     public synchronized void incrementGroundPlanes() {
         totalPlanesOnGround++;
-        planesOnRunway++; // When a plane lands, it's initially on the runway
+        setRunwayStatus(1); // Set runway status to exactly 1 plane
         successfulLandings++;
         totalPlanesHandled++;
         printGroundStatus();
@@ -39,6 +48,15 @@ public class AirportManager {
         }
     }
 
+    public synchronized void recordEmergencyLanding() {
+        emergencyLandings++;
+    }
+
+    public synchronized void recordPassengerActivity(int embarked, int disembarked) {
+        totalPassengersEmbarked += embarked;
+        totalPassengersDisembarked += disembarked;
+    }
+
     public synchronized int assignGate(Plane plane) throws InterruptedException {
         // Check if this plane was already in the holding queue
         boolean wasInQueue = holdingQueue.remove(plane);
@@ -49,10 +67,8 @@ public class AirportManager {
                     gates[i] = true;
                     planesAtGates++;
 
-                    // Decrement runway count as plane moves from runway to gate
-                    if (planesOnRunway > 0) {
-                        planesOnRunway--;
-                    }
+                    // Set runway count to exactly 0 as plane moves to gate
+                    setRunwayStatus(0);
 
                     gateStartTimes[i] = System.currentTimeMillis();
                     System.out.println("🛬 " + plane.getName() + " assigned to Gate " + (i + 1) + ".");
@@ -63,7 +79,9 @@ public class AirportManager {
 
             // If we get here, no gates are available
             if (!wasInQueue) {
-                System.out.println("🚧 " + plane.getName() + " is in HOLDING (No available gates).");
+                System.out.println("🚧 " + plane.getName() +
+                        (plane.isEmergency() ? " 🚨 (EMERGENCY) " : " ") +
+                        "is in HOLDING (No available gates).");
                 holdingQueue.add(plane);
             }
 
@@ -76,11 +94,8 @@ public class AirportManager {
             gates[gateNumber] = false;
             planesAtGates--;
 
-            // Increment runway count as plane moves from gate to runway for takeoff
-            // But only if the runway isn't already occupied
-            if (planesOnRunway == 0) {
-                planesOnRunway = 1;
-            }
+            // Set runway count to exactly 1 as plane moves to runway for takeoff
+            setRunwayStatus(1);
 
             long occupancyTime = System.currentTimeMillis() - gateStartTimes[gateNumber];
             totalGateOccupancyTime += occupancyTime;
@@ -94,10 +109,8 @@ public class AirportManager {
     }
 
     public synchronized void planeTakeoff() {
-        // Plane leaves the runway after takeoff
-        if (planesOnRunway > 0) {
-            planesOnRunway--;
-        }
+        // Set runway count to exactly 0 after takeoff
+        setRunwayStatus(0);
     }
 
     public synchronized boolean canPlaneLand() {
@@ -116,9 +129,10 @@ public class AirportManager {
         System.out.println("\n========= FINAL AIRPORT STATISTICS =========");
         System.out.println("Total planes handled: " + totalPlanesHandled);
         System.out.println("Total successful landings: " + successfulLandings);
+        System.out.println("Total emergency landings: " + emergencyLandings);
         System.out.println("Total successful takeoffs: " + successfulTakeoffs);
-        System.out.println("Total emergency landings: 0");
-        System.out.println("Total planes diverted: 0");
+        System.out.println("Total passengers embarked: " + totalPassengersEmbarked);
+        System.out.println("Total passengers disembarked: " + totalPassengersDisembarked);
 
         long avgOccupancyTime = (successfulLandings > 0) ?
                 totalGateOccupancyTime / successfulLandings : 0;
@@ -128,12 +142,25 @@ public class AirportManager {
     }
 
     public synchronized void performGateOperations(Plane plane, int gateNumber) throws InterruptedException {
+        // Generate random passenger counts (1-50)
+        int disembarkingCount = (int)(Math.random() * 50) + 1;
+        int boardingCount = (int)(Math.random() * 50) + 1;
+
+        // Record the counts
+        recordPassengerActivity(boardingCount, disembarkingCount);
+
+        // Generate passenger objects
+        Passenger[] disembarking = Passenger.generatePassengers(plane, true, disembarkingCount);
+        Passenger[] boarding = Passenger.generatePassengers(plane, false, boardingCount);
+
         // Create two threads - one for passenger operations, one for aircraft servicing
         Thread passengerOps = new Thread(() -> {
             try {
-                System.out.println("🧑‍✈️ " + plane.getName() + ": Passengers disembarking at Gate " + (gateNumber + 1));
+                System.out.println("🧑‍✈️ " + plane.getName() + ": " + disembarkingCount +
+                        " passengers disembarking at Gate " + (gateNumber + 1));
                 Thread.sleep(2000);
-                System.out.println("🧑‍✈️ " + plane.getName() + ": New passengers boarding at Gate " + (gateNumber + 1));
+                System.out.println("🧑‍✈️ " + plane.getName() + ": " + boardingCount +
+                        " passengers boarding at Gate " + (gateNumber + 1));
                 Thread.sleep(2000);
                 System.out.println("✅ " + plane.getName() + ": Passenger operations completed at Gate " + (gateNumber + 1));
             } catch (InterruptedException e) {

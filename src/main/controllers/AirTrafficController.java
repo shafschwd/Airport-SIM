@@ -7,20 +7,52 @@ import java.util.Queue;
 public class AirTrafficController {
     private boolean runwayAvailable = true;
     private final Queue<Plane> normalQueue = new LinkedList<>();
+    private final Queue<Plane> emergencyQueue = new LinkedList<>();
 
     public synchronized void requestLanding(Plane plane, AirportManager manager) throws InterruptedException {
-        System.out.println("🎤 P-" + plane.getPlaneId() + ": 'Tower, this is " + plane.getName() + ", requesting permission to land.'");
-        normalQueue.add(plane);
+        if (plane.isEmergency()) {
+            System.out.println("🎤 P-" + plane.getPlaneId() + ": 'Tower, this is " + plane.getName() +
+                    ", declaring EMERGENCY! Requesting immediate landing clearance.'");
+            emergencyQueue.add(plane);
+        } else {
+            System.out.println("🎤 P-" + plane.getPlaneId() + ": 'Tower, this is " + plane.getName() +
+                    ", requesting permission to land.'");
+            normalQueue.add(plane);
+        }
 
         while (true) {
             if (!runwayAvailable) {
-                System.out.println("🎤 ATC: '" + plane.getName() + ", hold position. Runway is currently occupied.'");
+                if (plane.isEmergency()) {
+                    System.out.println("🎤 ATC: '🚨 EMERGENCY AIRCRAFT " + plane.getName() +
+                            ", stand by, clearing runway for your arrival.'");
+                } else {
+                    System.out.println("🎤 ATC: '" + plane.getName() + ", hold position. Runway is currently occupied.'");
+                }
                 wait();
                 continue;
             }
 
             if (!manager.canPlaneLand()) {
-                System.out.println("🎤 ATC: '" + plane.getName() + ", hold position. All gates are full, cannot accept more arrivals.'");
+                if (plane.isEmergency()) {
+                    System.out.println("🎤 ATC: '🚨 " + plane.getName() +
+                            ", EMERGENCY ACKNOWLEDGED. Hold position. All gates are full, cannot accept more arrivals.'");
+                } else {
+                    System.out.println("🎤 ATC: '" + plane.getName() +
+                            ", hold position. All gates are full, cannot accept more arrivals.'");
+                }
+                wait();
+                continue;
+            }
+
+            // Check if this plane is next in queue (emergency queue gets priority)
+            Plane nextPlane = null;
+            if (!emergencyQueue.isEmpty()) {
+                nextPlane = emergencyQueue.peek();
+            } else if (!normalQueue.isEmpty()) {
+                nextPlane = normalQueue.peek();
+            }
+
+            if (nextPlane != plane) {
                 wait();
                 continue;
             }
@@ -28,12 +60,29 @@ public class AirTrafficController {
             break;
         }
 
-        Plane landingPlane = normalQueue.poll();
-        System.out.println("🎤 ATC: '" + landingPlane.getName() + ", cleared to land. Proceed to runway.'");
+        // Remove plane from its queue
+        if (plane.isEmergency()) {
+            emergencyQueue.poll();
+        } else {
+            normalQueue.poll();
+        }
+
+        if (plane.isEmergency()) {
+            System.out.println("🎤 ATC: '" + plane.getName() + ", EMERGENCY landing cleared. Proceed to runway immediately.'");
+        } else {
+            System.out.println("🎤 ATC: '" + plane.getName() + ", cleared to land. Proceed to runway.'");
+        }
 
         runwayAvailable = false;
-        Thread.sleep(2000);
-        System.out.println("✅ " + landingPlane.getName() + " has LANDED.");
+        Thread.sleep(plane.isEmergency() ? 1000 : 2000); // Emergency planes land faster
+
+        if (plane.isEmergency()) {
+            System.out.println("✅ " + plane.getName() + " has EMERGENCY LANDED! 🚨");
+            manager.recordEmergencyLanding();
+        } else {
+            System.out.println("✅ " + plane.getName() + " has LANDED.");
+        }
+
         manager.incrementGroundPlanes();
         runwayAvailable = true;
         notifyAll();
@@ -51,8 +100,11 @@ public class AirTrafficController {
         System.out.println("🎤 ATC: '" + plane.getName() + ", cleared for takeoff. Safe flight!'");
         Thread.sleep(2000);
         System.out.println("✅ " + plane.getName() + " has successfully taken off.");
-        manager.planeTakeoff(); // Call this BEFORE decrementGroundPlanes to ensure correct counting
+
+        // Call planeTakeoff first to set runway to 0
+        manager.planeTakeoff();
         manager.decrementGroundPlanes();
+
         runwayAvailable = true;
         notifyAll();
     }

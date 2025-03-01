@@ -19,24 +19,24 @@ public class AirportSimulation {
         Thread refuelingThread = new Thread(() -> {
             RefuelingTruck.startRefueling(atc, manager);
         });
-        refuelingThread.setDaemon(true); // Makes the thread exit when all non-daemon threads are done
+        refuelingThread.setDaemon(true);
         refuelingThread.start();
 
         int totalPlanes = 6;
         Plane[] planes = new Plane[totalPlanes];
 
-        // Create all planes first
+        // Create all planes first - make one plane an emergency aircraft
         for (int i = 0; i < totalPlanes; i++) {
-            planes[i] = new Plane(i + 1, atc, manager);
+            boolean isEmergency = (i == 2); // Make Plane-3 an emergency aircraft
+            planes[i] = new Plane(i + 1, atc, manager, isEmergency);
         }
 
-        // Start planes with staggered but overlapping arrival times
+        // Start planes with staggered arrival times
         for (int i = 0; i < totalPlanes; i++) {
             planes[i].start();
 
-            // Use shorter delays between plane starts to create more concurrent activity
             try {
-                int delay = rand.nextInt(300) + 2000; // 2-5 seconds between plane starts
+                int delay = rand.nextInt(300) + 2000;
                 System.out.println("⏳ Next plane arriving in " + (delay / 1000) + " seconds...");
                 Thread.sleep(delay);
             } catch (InterruptedException e) {
@@ -44,7 +44,7 @@ public class AirportSimulation {
             }
         }
 
-        // Ensure all planes have completed their operations before printing final statistics
+        // Wait for all planes to complete
         for (Plane plane : planes) {
             try {
                 plane.join();
@@ -53,15 +53,13 @@ public class AirportSimulation {
             }
         }
 
-        // Print final statistics
+        // Print statistics and end
         manager.printFinalStatistics();
 
-        // Calculate and print execution time
         long endTime = System.currentTimeMillis();
         double executionTimeSeconds = (endTime - startTime) / 1000.0;
         System.out.printf("\n⏱️ Total simulation time: %.2f seconds\n", executionTimeSeconds);
 
-        // Ensure the program terminates even if there are non-daemon threads
         System.exit(0);
     }
 }

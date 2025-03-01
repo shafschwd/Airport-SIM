@@ -2,22 +2,31 @@ package entities;
 
 import controllers.AirTrafficController;
 import controllers.AirportManager;
-import utils.FlightHistory;
 
 public class Plane extends Thread {
     private final int planeId;
     private final AirTrafficController atc;
     private final AirportManager manager;
+    private final boolean emergency;
 
-    public Plane(int planeId, AirTrafficController atc, AirportManager manager) {
+    public Plane(int planeId, AirTrafficController atc, AirportManager manager, boolean emergency) {
         super("Plane-" + planeId);
         this.planeId = planeId;
         this.atc = atc;
         this.manager = manager;
+        this.emergency = emergency;
+    }
+
+    public Plane(int planeId, AirTrafficController atc, AirportManager manager) {
+        this(planeId, atc, manager, false);
     }
 
     public int getPlaneId() {
         return planeId;
+    }
+
+    public boolean isEmergency() {
+        return emergency;
     }
 
     @Override
