@@ -36,7 +36,7 @@ public class AirportSimulation {
             planes[i].start();
 
             try {
-                int delay = rand.nextInt(300) + 2000;
+                int delay = rand.nextInt(300) + 1000;
                 System.out.println("⏳ Next plane arriving in " + (delay / 1000) + " seconds...");
                 Thread.sleep(delay);
             } catch (InterruptedException e) {

@@ -4,6 +4,9 @@ import entities.Plane;
 import entities.Passenger;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Condition;
 
 public class AirportManager {
     private int totalPlanesOnGround = 0;
@@ -12,6 +15,11 @@ public class AirportManager {
     private final boolean[] gates = new boolean[3];
     private final long[] gateStartTimes = new long[3];
     private final Queue<Plane> holdingQueue = new LinkedList<>();
+
+    // Locks and conditions for better concurrency management
+    private final ReentrantLock managerLock = new ReentrantLock();
+    private final Condition gateAvailable = managerLock.newCondition();
+    private final Semaphore runwaySemaphore = new Semaphore(1, true);
 
     // Statistics tracking
     private int totalPlanesHandled = 0;
@@ -22,130 +30,190 @@ public class AirportManager {
     private int totalPassengersEmbarked = 0;
     private int totalPassengersDisembarked = 0;
 
-    public synchronized int getTotalPlanesOnGround() {
-        return totalPlanesOnGround;
+    public int getTotalPlanesOnGround() {
+        managerLock.lock();
+        try {
+            return planesOnRunway + planesAtGates;
+        } finally {
+            managerLock.unlock();
+        }
     }
 
     // Helper method to explicitly set runway status
-    private synchronized void setRunwayStatus(int count) {
-        planesOnRunway = count;
+    private void setRunwayStatus(int count) {
+        managerLock.lock();
+        try {
+            planesOnRunway = count;
+        } finally {
+            managerLock.unlock();
+        }
     }
 
-    public synchronized void incrementGroundPlanes() {
-        totalPlanesOnGround++;
-        setRunwayStatus(1); // Set runway status to exactly 1 plane
-        successfulLandings++;
-        totalPlanesHandled++;
-        printGroundStatus();
+    public void incrementGroundPlanes() {
+        managerLock.lock();
+        try {
+            planesOnRunway = 1;
+            successfulLandings++;
+            totalPlanesHandled++;
+            totalPlanesOnGround = planesOnRunway + planesAtGates;
+            printGroundStatus();
+        } finally {
+            managerLock.unlock();
+        }
     }
 
-    public synchronized void decrementGroundPlanes() {
-        if (totalPlanesOnGround > 0) {
-            totalPlanesOnGround--;
+    public void decrementGroundPlanes() {
+        managerLock.lock();
+        try {
+            planesOnRunway = 0;
             successfulTakeoffs++;
+            totalPlanesOnGround = planesOnRunway + planesAtGates;
             printGroundStatus();
-            notifyAll();
+            gateAvailable.signalAll();
+        } finally {
+            managerLock.unlock();
         }
     }
 
-    public synchronized void recordEmergencyLanding() {
-        emergencyLandings++;
+    public void recordEmergencyLanding() {
+        managerLock.lock();
+        try {
+            emergencyLandings++;
+        } finally {
+            managerLock.unlock();
+        }
     }
 
-    public synchronized void recordPassengerActivity(int embarked, int disembarked) {
-        totalPassengersEmbarked += embarked;
-        totalPassengersDisembarked += disembarked;
+    public void recordPassengerActivity(int embarked, int disembarked) {
+        managerLock.lock();
+        try {
+            totalPassengersEmbarked += embarked;
+            totalPassengersDisembarked += disembarked;
+        } finally {
+            managerLock.unlock();
+        }
     }
 
-    public synchronized int assignGate(Plane plane) throws InterruptedException {
-        // Check if this plane was already in the holding queue
-        boolean wasInQueue = holdingQueue.remove(plane);
+    public int assignGate(Plane plane) throws InterruptedException {
+        managerLock.lock();
+        try {
+            // Check if this plane was already in the holding queue
+            boolean wasInQueue = holdingQueue.remove(plane);
 
-        while (true) {
-            for (int i = 0; i < gates.length; i++) {
-                if (!gates[i]) {
-                    gates[i] = true;
-                    planesAtGates++;
+            while (true) {
+                for (int i = 0; i < gates.length; i++) {
+                    if (!gates[i]) {
+                        gates[i] = true;
+                        planesAtGates++;
+                        planesOnRunway = 0;
+                        totalPlanesOnGround = planesOnRunway + planesAtGates;
 
-                    // Set runway count to exactly 0 as plane moves to gate
-                    setRunwayStatus(0);
-
-                    gateStartTimes[i] = System.currentTimeMillis();
-                    System.out.println("🛬 " + plane.getName() + " assigned to Gate " + (i + 1) + ".");
-                    printGroundStatus();
-                    return i;
+                        gateStartTimes[i] = System.currentTimeMillis();
+                        System.out.println("🛬 " + plane.getName() + " assigned to Gate " + (i + 1) + ".");
+                        printGroundStatus();
+                        return i;
+                    }
                 }
-            }
 
-            // If we get here, no gates are available
-            if (!wasInQueue) {
-                System.out.println("🚧 " + plane.getName() +
-                        (plane.isEmergency() ? " 🚨 (EMERGENCY) " : " ") +
-                        "is in HOLDING (No available gates).");
-                holdingQueue.add(plane);
-            }
+                // If we get here, no gates are available
+                if (!wasInQueue) {
+                    System.out.println("🚧 " + plane.getName() +
+                            (plane.isEmergency() ? " 🚨 (EMERGENCY) " : " ") +
+                            "is in HOLDING (No available gates).");
+                    holdingQueue.add(plane);
+                }
 
-            wait(); // Wait for a gate to become available
+                gateAvailable.await(); // Wait for a gate to become available
+            }
+        } finally {
+            managerLock.unlock();
         }
     }
 
-    public synchronized void releaseGate(Plane plane, int gateNumber) {
-        if (gateNumber >= 0 && gateNumber < gates.length && gates[gateNumber]) {
-            gates[gateNumber] = false;
-            planesAtGates--;
+    public void releaseGate(Plane plane, int gateNumber) {
+        managerLock.lock();
+        try {
+            if (gateNumber >= 0 && gateNumber < gates.length && gates[gateNumber]) {
+                gates[gateNumber] = false;
+                planesAtGates--;
+                planesOnRunway = 1;
+                totalPlanesOnGround = planesOnRunway + planesAtGates;
 
-            // Record gate occupancy time
-            long occupancyTime = System.currentTimeMillis() - gateStartTimes[gateNumber];
-            totalGateOccupancyTime += occupancyTime;
+                // Record gate occupancy time
+                long occupancyTime = System.currentTimeMillis() - gateStartTimes[gateNumber];
+                totalGateOccupancyTime += occupancyTime;
 
-            // Set runway count to exactly 1 as plane moves to runway for takeoff
-            setRunwayStatus(1);
+                // Print the departure message after all state has been updated
+                System.out.println("🚪 " + plane.getName() + " has left Gate " + (gateNumber + 1) + ".");
 
-            // Print the departure message after all state has been updated
-            System.out.println("🚪 " + plane.getName() + " has left Gate " + (gateNumber + 1) + ".");
+                // Print updated ground status only once after all changes are complete
+                printGroundStatus();
 
-            // Print updated ground status only once after all changes are complete
-            printGroundStatus();
-
-            // Wake up all waiting threads
-            notifyAll();
+                // Signal waiting threads
+                gateAvailable.signalAll();
+            }
+        } finally {
+            managerLock.unlock();
         }
     }
 
-    public synchronized void planeTakeoff() {
-        // Set runway count to exactly 0 after takeoff
-        setRunwayStatus(0);
+    public void acquireRunway() throws InterruptedException {
+        runwaySemaphore.acquire();
     }
 
-    public synchronized boolean canPlaneLand() {
-        // We can only accept landings if:
-        // 1. We're below max capacity (3 planes total)
-        // 2. The runway isn't already occupied
-        return totalPlanesOnGround < 3 && planesOnRunway == 0;
+    public void releaseRunway() {
+        runwaySemaphore.release();
+    }
+
+    public void planeTakeoff() {
+        managerLock.lock();
+        try {
+            planesOnRunway = 0;
+            totalPlanesOnGround = planesOnRunway + planesAtGates;
+        } finally {
+            managerLock.unlock();
+        }
+    }
+
+    public boolean canPlaneLand() {
+        managerLock.lock();
+        try {
+            // We can only accept landings if:
+            // 1. We have fewer than 3 planes total on ground
+            // 2. The runway isn't already occupied
+            return (planesAtGates + planesOnRunway) < 3 && planesOnRunway == 0;
+        } finally {
+            managerLock.unlock();
+        }
     }
 
     public void printGroundStatus() {
-        System.out.println("📊 Planes on ground: " + totalPlanesOnGround +
+        System.out.println("📊 Planes on ground: " + getTotalPlanesOnGround() +
                 " (Runway: " + planesOnRunway + ", Gates: " + planesAtGates + ")");
     }
 
     public void printFinalStatistics() {
-        System.out.println("\n========= FINAL AIRPORT STATISTICS =========");
-        System.out.println("Total planes handled: " + totalPlanesHandled);
-        System.out.println("Total successful landings: " + successfulLandings);
-        System.out.println("Total emergency landings: " + emergencyLandings);
-        System.out.println("Total successful takeoffs: " + successfulTakeoffs);
-        System.out.println("Total passengers embarked: " + totalPassengersEmbarked);
-        System.out.println("Total passengers disembarked: " + totalPassengersDisembarked);
+        managerLock.lock();
+        try {
+            System.out.println("\n========= FINAL AIRPORT STATISTICS =========");
+            System.out.println("Total planes handled: " + totalPlanesHandled);
+            System.out.println("Total successful landings: " + successfulLandings);
+            System.out.println("Total emergency landings: " + emergencyLandings);
+            System.out.println("Total successful takeoffs: " + successfulTakeoffs);
+            System.out.println("Total passengers embarked: " + totalPassengersEmbarked);
+            System.out.println("Total passengers disembarked: " + totalPassengersDisembarked);
 
-        long avgOccupancyTime = (successfulLandings > 0) ?
-                totalGateOccupancyTime / successfulLandings : 0;
-        System.out.println("Average gate occupancy time: " + avgOccupancyTime + " ms");
-        System.out.println("Planes remaining in holding: " + holdingQueue.size());
-        System.out.println("===========================================");
+            long avgOccupancyTime = (successfulLandings > 0) ?
+                    totalGateOccupancyTime / successfulLandings : 0;
+            System.out.println("Average gate occupancy time: " + avgOccupancyTime + " ms");
+            System.out.println("Planes remaining in holding: " + holdingQueue.size());
+            System.out.println("===========================================");
+        } finally {
+            managerLock.unlock();
+        }
     }
 
-    public synchronized void performGateOperations(Plane plane, int gateNumber) throws InterruptedException {
+    public void performGateOperations(Plane plane, int gateNumber) throws InterruptedException {
         // Generate random passenger counts (1-50)
         int disembarkingCount = (int)(Math.random() * 50) + 1;
         int boardingCount = (int)(Math.random() * 50) + 1;

@@ -73,19 +73,25 @@ public class AirTrafficController {
             System.out.println("🎤 ATC: '" + plane.getName() + ", cleared to land. Proceed to runway.'");
         }
 
-        runwayAvailable = false;
-        Thread.sleep(plane.isEmergency() ? 1000 : 2000); // Emergency planes land faster
+        // Use manager's synchronization to update state atomically
+        manager.acquireRunway();
+        try {
+            runwayAvailable = false;
+            Thread.sleep(plane.isEmergency() ? 1000 : 2000); // Emergency planes land faster
 
-        if (plane.isEmergency()) {
-            System.out.println("✅ " + plane.getName() + " has EMERGENCY LANDED! 🚨");
-            manager.recordEmergencyLanding();
-        } else {
-            System.out.println("✅ " + plane.getName() + " has LANDED.");
+            if (plane.isEmergency()) {
+                System.out.println("✅ " + plane.getName() + " has EMERGENCY LANDED! 🚨");
+                manager.recordEmergencyLanding();
+            } else {
+                System.out.println("✅ " + plane.getName() + " has LANDED.");
+            }
+
+            manager.incrementGroundPlanes();
+        } finally {
+            manager.releaseRunway();
+            runwayAvailable = true;
+            notifyAll();
         }
-
-        manager.incrementGroundPlanes();
-        runwayAvailable = true;
-        notifyAll();
     }
 
     public synchronized void requestTakeoff(Plane plane, AirportManager manager) throws InterruptedException {
@@ -99,13 +105,17 @@ public class AirTrafficController {
         runwayAvailable = false;
         System.out.println("🎤 ATC: '" + plane.getName() + ", cleared for takeoff. Safe flight!'");
         Thread.sleep(2000);
-        System.out.println("✅ " + plane.getName() + " has successfully taken off.");
 
-        // Call planeTakeoff first to set runway to 0
-        manager.planeTakeoff();
-        manager.decrementGroundPlanes();
-
-        runwayAvailable = true;
-        notifyAll();
+        // Use manager's synchronization to update state atomically
+        manager.acquireRunway();
+        try {
+            System.out.println("✅ " + plane.getName() + " has successfully taken off.");
+            manager.planeTakeoff();
+            manager.decrementGroundPlanes();
+        } finally {
+            manager.releaseRunway();
+            runwayAvailable = true;
+            notifyAll();
+        }
     }
 }
