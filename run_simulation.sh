@@ -10,7 +10,7 @@ rm -rf out/*
 start_time=$(date +%s.%N)
 
 # Compile the Java files - remove the 2>/dev/null to see errors
-javac -d out src/main/AirportSimulation.java src/main/controllers/*.java src/main/entities/*.java src/main/utils/*.java
+javac -d out src/main/AirportSimulation.java src/main/controllers/*.java src/main/entities/*.java
 
 # Check if compilation was successful
 if [ $? -eq 0 ]; then
