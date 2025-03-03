@@ -1,9 +1,9 @@
 package main;
 
-import controllers.AirTrafficController;
-import controllers.AirportManager;
-import entities.Plane;
-import entities.RefuelingTruck;
+import main.controllers.AirTrafficController;
+import main.controllers.AirportManager;
+import main.entities.Plane;
+import main.entities.RefuelingTruck;
 import java.util.Random;
 
 public class AirportSimulation {

@@ -1,7 +1,7 @@
-package controllers;
+package main.controllers;
 
-import entities.Plane;
-import entities.Passenger;
+import main.entities.Plane;
+import main.entities.Passenger;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.Semaphore;

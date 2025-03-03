@@ -1,6 +1,6 @@
-package controllers;
+package main.controllers;
 
-import entities.Plane;
+import main.entities.Plane;
 import java.util.LinkedList;
 import java.util.Queue;
 

@@ -1,7 +1,7 @@
-package entities;
+package main.entities;
 
-import controllers.AirTrafficController;
-import controllers.AirportManager;
+import main.controllers.AirTrafficController;
+import main.controllers.AirportManager;
 
 public class Plane extends Thread {
     private final int planeId;

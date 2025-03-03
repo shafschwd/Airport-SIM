@@ -1,7 +1,7 @@
-package entities;
+package main.entities;
 
-import controllers.AirTrafficController;
-import controllers.AirportManager;
+import main.controllers.AirTrafficController;
+import main.controllers.AirportManager;
 import java.util.LinkedList;
 import java.util.Queue;
 
